@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>MovieSentiment - IMDb Review Analyzer</title>
+  <style>
+    :root {
+      --background: #1c1f2e;
+      --foreground: #f7fafc;
+      --primary: #f3d03e;
+      --secondary: #1e2235;
+      --muted: #2d3142;
+      --accent: #f3d03e;
+      --positive: #4ade80;
+      --negative: #ef4444;
+      --border: #2d3142;
+    }
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background-color: var(--background);
+      color: var(--foreground);
+    }
+    .container { max-width: 1200px; margin: auto; padding: 1rem; }
+    header { background: var(--secondary); padding: 1rem 0; text-align: center; }
+    .accent { color: var(--accent); }
+
+    .search-section {
+      text-align: center;
+      padding: 2rem 0;
+    }
+    .search-container {
+      display: flex;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+    .search-input {
+      flex: 1;
+      padding: 0.8rem;
+      border: 2px solid var(--border);
+      background-color: var(--muted);
+      color: var(--foreground);
+    }
+    .search-button {
+      padding: 0.8rem 1.5rem;
+      background-color: var(--accent);
+      color: var(--background);
+      border: none;
+    }
+
+    .description-box {
+      background-color: var(--secondary);
+      border-left: 4px solid var(--accent);
+      padding: 1rem 1.5rem;
+      margin: 2rem auto;
+      border-radius: 8px;
+      max-width: 900px;
+    }
+    .description-box h3 { color: var(--accent); margin-bottom: 0.5rem; }
+    .description-box p {
+      margin-bottom: 0.7rem;
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    .movie-details {
+      display: grid;
+      grid-template-columns: 1fr 2fr;
+      gap: 2rem;
+      background-color: var(--secondary);
+      padding: 2rem;
+      margin: 2rem 0;
+    }
+    .movie-poster img { width: 100%; border-radius: 8px; }
+
+    .sentiment-card {
+      background-color: var(--secondary);
+      padding: 1.5rem;
+      border-radius: 8px;
+    }
+    .progress-bar { background-color: var(--muted); height: 10px; margin: 1rem 0; }
+    .progress { height: 100%; background-color: var(--positive); }
+    .negative .progress { background-color: var(--negative); }
+
+    .review-card {
+      background-color: var(--secondary);
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+      border-radius: 8px;
+    }
+    .sentiment-positive { border-left: 4px solid var(--positive); }
+    .sentiment-negative { border-left: 4px solid var(--negative); }
+
+    @media (max-width: 768px) {
+      .movie-details {
+        display: block;
+      }
+      .search-container {
+        flex-direction: column;
+      }
+      .search-button {
+        margin-top: 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="container">
+      <h1>Movie<span class="accent">Sentiment</span></h1>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="search-section">
+      <h2>Analyze IMDb Movie Reviews</h2>
+      <p>Search for a movie to see sentiment analysis of its reviews</p>
+      <form method="post" action="/search">
+        <div class="search-container">
+          <input type="text" name="movie" placeholder="Search..." class="search-input" required />
+          <button class="search-button">Search</button>
+        </div>
+      </form>
+
+      <section class="description-box">
+        <div class="description-content">
+          <h3>🛠 Project Descriptions</h3>
+          <p><strong>Railway-based App:</strong> Same core logic with FastAPI, Uvicorn, and TMDb. Hosted on Railway for faster load times and instant startup. Includes a styled spinner and mobile-friendly layout. Handles up to 100 TMDb reviews with real-time sentiment classification. Quick and reliable for lightweight machine learning apps.</p>
+          <p style="text-align: right; color: var(--accent);"><em>By Anshika Gupta</em></p>
+        </div>
+      </section>
+    </section>
+
+    {% if movies %}
+    <section>
+      <h2>Search Results</h2>
+      <ul>
+        {% for movie in movies %}
+        <li><a href="/movie/{{ movie.id }}">{{ movie.title }} ({{ movie.year }})</a></li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% endif %}
+
+    {% if title %}
+    <section class="movie-details">
+      <div class="movie-poster">
+        <img src="{{ poster }}" alt="Poster for {{ title }}">
+      </div>
+      <div class="movie-info">
+        <h2>{{ title }}</h2>
+        <p>Rating: {{ rating }}/10 | Runtime: {{ runtime }} min | Genre: {{ genres }}</p>
+        <p>{{ overview }}</p>
+        <p><strong>Director:</strong> {{ director }}</p>
+        <p><strong>Stars:</strong> {{ cast }}</p>
+      </div>
+    </section>
+
+    <section class="sentiment-overview">
+      <div class="sentiment-card positive">
+        <h3>Positive Reviews</h3>
+        <p>{{ positive_percent }}%</p>
+        <div class="progress-bar"><div class="progress" style="width: {{ positive_percent }}%;"></div></div>
+        <p>{{ positive_count }} reviews</p>
+      </div>
+      <div class="sentiment-card negative">
+        <h3>Negative Reviews</h3>
+        <p>{{ negative_percent }}%</p>
+        <div class="progress-bar"><div class="progress" style="width: {{ negative_percent }}%;"></div></div>
+        <p>{{ negative_count }} reviews</p>
+      </div>
+    </section>
+
+    <section>
+      <h2>Reviews</h2>
+      {% for r in reviews %}
+      <div class="review-card sentiment-{{ r.label }}">
+        <p>"{{ r.content }}"</p>
+        <p><strong>- {{ r.author }}</strong>, Rating: {{ r.rating }}</p>
+      </div>
+      {% endfor %}
+    </section>
+    {% endif %}
+  </main>
+
+  <div id="loading" style="display:none; text-align:center; margin:20px;">
+    <div style="border: 6px solid #f3f3f3; border-top: 6px solid #555; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin:auto;"></div>
+    <p>Fetching reviews...this might take a minute</p>
+  </div>
+
+  <script>
+    function showLoading() {
+      document.getElementById('loading').style.display = 'block';
+    }
+
+    // Add loading spinner to each movie link
+    document.querySelectorAll('a[href^="/movie/"]').forEach(link => {
+      link.addEventListener('click', showLoading);
+    });
+  </script>
+
+  <style>
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</body>
+</html>
